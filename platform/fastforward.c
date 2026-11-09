@@ -54,6 +54,7 @@ static struct {
     bool held;
     bool toggled;
     bool pad_held; /* the controller's hold was pressed and is not yet released */
+    uint32_t flash_frames; /* frames left of the indicator after a speed key, fast-forward off */
     struct fastforward_settings settings;
 } fastforward;
 
@@ -220,6 +221,7 @@ int fastforward_init(const struct fastforward_settings *settings)
     fastforward.held = false;
     fastforward.toggled = false;
     fastforward.pad_held = false;
+    fastforward.flash_frames = 0;
     fastforward.enabled = true;
     return 0;
 }
@@ -230,11 +232,20 @@ void fastforward_shutdown(void)
     fastforward.held = false;
     fastforward.toggled = false;
     fastforward.pad_held = false;
+    fastforward.flash_frames = 0;
 }
 
 bool fastforward_enabled(void)
 {
     return fastforward.enabled;
+}
+
+/* A speed key's press: the speed, and the indicator shown for a while even
+ * with fast-forward off, so that the press is seen (at the list's end too). */
+static void set_speed(uint32_t speed)
+{
+    fastforward.settings.speed = speed;
+    fastforward.flash_frames = FASTFORWARD_FLASH_FRAMES;
 }
 
 /* A press, the overlay's while it is shown; a repeat does nothing. */
@@ -248,9 +259,9 @@ static void key_down(const SDL_KeyboardEvent *key)
     else if (fastforward_key_pressed(&fastforward.settings.hold, scancode, key->keysym.mod))
         fastforward.held = true;
     else if (fastforward_key_pressed(&fastforward.settings.faster, scancode, key->keysym.mod))
-        fastforward.settings.speed = fastforward_speed_step(fastforward.settings.speed, true);
+        set_speed(fastforward_speed_step(fastforward.settings.speed, true));
     else if (fastforward_key_pressed(&fastforward.settings.slower, scancode, key->keysym.mod))
-        fastforward.settings.speed = fastforward_speed_step(fastforward.settings.speed, false);
+        set_speed(fastforward_speed_step(fastforward.settings.speed, false));
 }
 
 void fastforward_handle_event(const union SDL_Event *event)
@@ -312,7 +323,13 @@ bool fastforward_muted(void)
 
 bool fastforward_indicator_shown(void)
 {
-    return fastforward_active() && !overlay_shown();
+    return (fastforward_active() || (fastforward.enabled && fastforward.flash_frames > 0)) && !overlay_shown();
+}
+
+void fastforward_end_frame(void)
+{
+    if (fastforward.enabled && fastforward.flash_frames > 0)
+        fastforward.flash_frames--;
 }
 
 void fastforward_indicator_text(uint32_t speed, char *out, size_t size)

@@ -592,6 +592,44 @@ PTEST(a_speed_key_with_other_modifiers_a_repeat_or_under_the_overlay_changes_not
     fastforward_shutdown();
 }
 
+PTEST(a_speed_key_shows_the_indicator_for_the_flash_frames_while_fast_forward_is_off)
+{
+    fastforward_shutdown();
+    fastforward_end_frame(); /* before init: nothing */
+    PT_ASSERT(!fastforward_indicator_shown());
+    start();
+    PT_ASSERT(!fastforward_indicator_shown());
+    press(SDL_SCANCODE_F3, KMOD_NONE);
+    PT_ASSERT(fastforward_indicator_shown());
+    for (uint32_t i = 0; i < FASTFORWARD_FLASH_FRAMES - 1u; i++)
+        fastforward_end_frame();
+    PT_ASSERT(fastforward_indicator_shown()); /* the last frame of the flash */
+    fastforward_end_frame();
+    PT_ASSERT(!fastforward_indicator_shown());
+    press(SDL_SCANCODE_F2, KMOD_NONE); /* a press at the list's end shows it too */
+    press(SDL_SCANCODE_F2, KMOD_NONE);
+    PT_ASSERT(fastforward_indicator_shown());
+    PT_ASSERT_EQ_U32(fastforward_speed(), 2u);
+    for (uint32_t i = 0; i < FASTFORWARD_FLASH_FRAMES; i++)
+        fastforward_end_frame();
+    PT_ASSERT(!fastforward_indicator_shown());
+    /* on: shown whatever the flash, and the frames do not end it */
+    press(SDL_SCANCODE_TAB, KMOD_NONE);
+    for (uint32_t i = 0; i < FASTFORWARD_FLASH_FRAMES; i++)
+        fastforward_end_frame();
+    PT_ASSERT(fastforward_indicator_shown());
+    release(SDL_SCANCODE_TAB, KMOD_NONE);
+    PT_ASSERT(!fastforward_indicator_shown());
+    /* the overlay hides the flash as it hides the indicator */
+    press(SDL_SCANCODE_F3, KMOD_NONE);
+    PT_ASSERT_EQ_INT(overlay_init(no_text), 0);
+    press_f1();
+    PT_ASSERT(!fastforward_indicator_shown());
+    overlay_shutdown();
+    fastforward_shutdown();
+    PT_ASSERT(!fastforward_indicator_shown());
+}
+
 PTEST(rebound_speed_keys_are_the_ones_that_work)
 {
     struct fastforward_settings settings = fastforward_defaults();

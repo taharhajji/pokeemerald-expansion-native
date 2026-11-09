@@ -121,7 +121,13 @@ the window (`FF 3x`, `FF 4x` or `FF max` at the other speeds).
 
 - The speed is a setting, `fast_forward_speed` ([below](#the-settings-file)):
   2, 3 or 4 times the GBA's speed, or `unlimited`, as fast as your computer
-  runs the game. The game itself is unchanged: it runs the same frames, more
+  runs the game. F3 takes it one step up that list and F2 one step down,
+  while you play, whether fast-forward is on (the indicator and the sound
+  follow at once) or off (the indicator shows the new speed for a second
+  and a half, and the next fast-forward runs at it); at the ends of the
+  list a press changes nothing but still shows the speed. The change lasts
+  until you quit: the file is never written, so the game starts at
+  `fast_forward_speed` again. The game itself is unchanged: it runs the same frames, more
   of them a second. Everything it counts in frames hurries along (walking,
   text, animations, and the play time on your trainer card); the clock
   (the time of day, Berries, tides) keeps your computer's time.

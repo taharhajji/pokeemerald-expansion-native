@@ -29,7 +29,11 @@
  * once, whether fast-forward is on (the pacer and the sound follow at the
  * next frame, and the indicator is drawn again) or off (the next
  * fast-forward runs at it), and it lasts until the game ends: the file is
- * never written. The four keys are four different keys.
+ * never written. The four keys are four different keys. So that a press
+ * while fast-forward is off is seen, the indicator shows the new speed for
+ * FASTFORWARD_FLASH_FRAMES frames after it (the frame loop counts them
+ * down with fastforward_end_frame); while fast-forward is on it shows
+ * anyway.
  *
  * The hold ends when its scancode comes up, whatever the modifiers are by
  * then, and when the window loses the keyboard's focus, whose key-up would
@@ -94,6 +98,10 @@
 
 /* The keys a fastforward_settings holds: hold, toggle, faster, slower. */
 #define FASTFORWARD_KEY_COUNT 4u
+
+/* How long the indicator shows a speed set by key while fast-forward is
+ * off: 90 frames, a second and a half. */
+#define FASTFORWARD_FLASH_FRAMES 90u
 
 /* Room for a key's name, "Ctrl+Alt+Shift+" and SDL's longest key name, and
  * for the indicator's text, with their NULs. */
@@ -195,8 +203,12 @@ uint32_t fastforward_speed(void);
 /* Whether the sound is off now: fast-forward on with FASTFORWARD_AUDIO_MUTE. */
 bool fastforward_muted(void);
 
-/* Whether the indicator shows now: fast-forward on and the overlay hidden. */
+/* Whether the indicator shows now: fast-forward on, or a speed key pressed
+ * within the last FASTFORWARD_FLASH_FRAMES frames, and the overlay hidden. */
 bool fastforward_indicator_shown(void);
+
+/* A frame has run: counts the flash down. Before init it does nothing. */
+void fastforward_end_frame(void);
 
 /* The indicator's text for a speed: "FF 2x" for 2, ..., "FF max" for
  * FASTFORWARD_UNLIMITED, into out (FASTFORWARD_INDICATOR_TEXT_SIZE bytes). */
