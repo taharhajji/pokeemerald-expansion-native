@@ -1,5 +1,5 @@
 /*
- * fastforward.c: fast-forward's keys, state and indicator (fastforward.h).
+ * fastforward.c: fast-forward's keys, state, speed and indicator (fastforward.h).
  *
  * Written from the behaviour fastforward.h fixes; SDL's key names are looked
  * up through input.h, which owns the keyboard. No emulator's code is
@@ -62,9 +62,44 @@ struct fastforward_settings fastforward_defaults(void)
     return (struct fastforward_settings){
         .hold = {.scancode = SDL_SCANCODE_TAB, .modifiers = 0u},
         .toggle = {.scancode = SDL_SCANCODE_TAB, .modifiers = FASTFORWARD_SHIFT},
+        .faster = {.scancode = FASTFORWARD_DEFAULT_FASTER_SCANCODE, .modifiers = 0u},
+        .slower = {.scancode = FASTFORWARD_DEFAULT_SLOWER_SCANCODE, .modifiers = 0u},
         .speed = FASTFORWARD_DEFAULT_SPEED,
         .audio = FASTFORWARD_AUDIO_PLAY,
     };
+}
+
+struct fastforward_key *fastforward_settings_key_mutable(struct fastforward_settings *settings, size_t index)
+{
+    switch (index) {
+    case 0:
+        return &settings->hold;
+    case 1:
+        return &settings->toggle;
+    case 2:
+        return &settings->faster;
+    case 3:
+        return &settings->slower;
+    default:
+        return NULL;
+    }
+}
+
+const struct fastforward_key *fastforward_settings_key(const struct fastforward_settings *settings, size_t index)
+{
+    /* The same four, read only; the cast drops const for the lookup alone. */
+    return fastforward_settings_key_mutable((struct fastforward_settings *)settings, index);
+}
+
+uint32_t fastforward_speed_step(uint32_t speed, bool faster)
+{
+    if (speed == FASTFORWARD_UNLIMITED)
+        return faster ? FASTFORWARD_UNLIMITED : FASTFORWARD_MAX_SPEED;
+    if (speed < FASTFORWARD_MIN_SPEED || speed > FASTFORWARD_MAX_SPEED)
+        return speed;
+    if (faster)
+        return speed == FASTFORWARD_MAX_SPEED ? FASTFORWARD_UNLIMITED : speed + 1u;
+    return speed == FASTFORWARD_MIN_SPEED ? speed : speed - 1u;
 }
 
 static const char *skip_blanks(const char *text)
@@ -163,11 +198,22 @@ static bool speed_is_valid(uint32_t speed)
     return speed == FASTFORWARD_UNLIMITED || (speed >= FASTFORWARD_MIN_SPEED && speed <= FASTFORWARD_MAX_SPEED);
 }
 
+/* Whether two of the settings' four keys are one. */
+static bool keys_clash(const struct fastforward_settings *settings)
+{
+    for (size_t i = 0; i < FASTFORWARD_KEY_COUNT; i++) {
+        for (size_t j = 0; j < i; j++) {
+            if (fastforward_keys_equal(fastforward_settings_key(settings, i), fastforward_settings_key(settings, j)))
+                return true;
+        }
+    }
+    return false;
+}
+
 int fastforward_init(const struct fastforward_settings *settings)
 {
-    if (settings == NULL || fastforward.enabled || !speed_is_valid(settings->speed)
-        || fastforward_keys_equal(&settings->hold, &settings->toggle)) {
-        (void)fprintf(stderr, MODULE ": fastforward_init needs a speed and two keys, and is called once\n");
+    if (settings == NULL || fastforward.enabled || !speed_is_valid(settings->speed) || keys_clash(settings)) {
+        (void)fprintf(stderr, MODULE ": fastforward_init needs a speed and four different keys, and is called once\n");
         return -1;
     }
     fastforward.settings = *settings;
@@ -201,6 +247,10 @@ static void key_down(const SDL_KeyboardEvent *key)
         fastforward.toggled = !fastforward.toggled;
     else if (fastforward_key_pressed(&fastforward.settings.hold, scancode, key->keysym.mod))
         fastforward.held = true;
+    else if (fastforward_key_pressed(&fastforward.settings.faster, scancode, key->keysym.mod))
+        fastforward.settings.speed = fastforward_speed_step(fastforward.settings.speed, true);
+    else if (fastforward_key_pressed(&fastforward.settings.slower, scancode, key->keysym.mod))
+        fastforward.settings.speed = fastforward_speed_step(fastforward.settings.speed, false);
 }
 
 void fastforward_handle_event(const union SDL_Event *event)
@@ -248,6 +298,11 @@ bool fastforward_active(void)
 uint32_t fastforward_multiplier(void)
 {
     return fastforward_active() ? fastforward.settings.speed : FRAME_PACER_NORMAL_SPEED;
+}
+
+uint32_t fastforward_speed(void)
+{
+    return fastforward.enabled ? fastforward.settings.speed : FRAME_PACER_NORMAL_SPEED;
 }
 
 bool fastforward_muted(void)
