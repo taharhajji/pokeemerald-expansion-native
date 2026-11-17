@@ -630,6 +630,51 @@ PTEST(a_speed_key_shows_the_indicator_for_the_flash_frames_while_fast_forward_is
     PT_ASSERT(!fastforward_indicator_shown());
 }
 
+PTEST(the_menus_setters_change_the_speed_the_toggle_and_the_sound)
+{
+    fastforward_shutdown();
+    PT_ASSERT_EQ_INT(fastforward_set_speed(3u), -1); /* before init */
+    fastforward_set_toggled(true);
+    fastforward_set_audio(FASTFORWARD_AUDIO_MUTE);
+    PT_ASSERT(!fastforward_toggled());
+    PT_ASSERT_EQ_INT(fastforward_audio(), FASTFORWARD_AUDIO_PLAY);
+    start();
+    PT_ASSERT_EQ_INT(fastforward_set_speed(3u), 0);
+    PT_ASSERT_EQ_U32(fastforward_speed(), 3u);
+    PT_ASSERT(fastforward_indicator_shown()); /* shown as a speed key shows it */
+    PT_ASSERT_EQ_INT(fastforward_set_speed(1u), -1);
+    PT_ASSERT_EQ_INT(fastforward_set_speed(FASTFORWARD_MAX_SPEED + 1u), -1);
+    PT_ASSERT_EQ_U32(fastforward_speed(), 3u);
+    PT_ASSERT_EQ_INT(fastforward_set_speed(FASTFORWARD_UNLIMITED), 0);
+    PT_ASSERT(!fastforward_toggled());
+    fastforward_set_toggled(true);
+    PT_ASSERT(fastforward_toggled());
+    PT_ASSERT_EQ_U32(fastforward_multiplier(), FASTFORWARD_UNLIMITED);
+    press(SDL_SCANCODE_TAB, KMOD_LSHIFT); /* the toggle key switches it off as it would */
+    PT_ASSERT(!fastforward_toggled());
+    fastforward_set_audio(FASTFORWARD_AUDIO_MUTE);
+    PT_ASSERT_EQ_INT(fastforward_audio(), FASTFORWARD_AUDIO_MUTE);
+    fastforward_set_audio((enum fastforward_audio)7); /* not one: nothing */
+    PT_ASSERT_EQ_INT(fastforward_audio(), FASTFORWARD_AUDIO_MUTE);
+    fastforward_shutdown();
+}
+
+PTEST(the_bubble_menu_open_takes_the_presses_but_not_the_release)
+{
+    start();
+    press(SDL_SCANCODE_TAB, KMOD_NONE);
+    PT_ASSERT(fastforward_active());
+    overlay_set_menu_open(true);
+    press(SDL_SCANCODE_F3, KMOD_NONE); /* the menu's */
+    PT_ASSERT_EQ_U32(fastforward_speed(), 2u);
+    release(SDL_SCANCODE_TAB, KMOD_NONE); /* still ends the hold */
+    PT_ASSERT(!fastforward_active());
+    press(SDL_SCANCODE_TAB, KMOD_NONE);
+    PT_ASSERT(!fastforward_active());
+    overlay_set_menu_open(false);
+    fastforward_shutdown();
+}
+
 PTEST(rebound_speed_keys_are_the_ones_that_work)
 {
     struct fastforward_settings settings = fastforward_defaults();

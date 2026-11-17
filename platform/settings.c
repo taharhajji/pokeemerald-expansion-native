@@ -26,6 +26,8 @@
 #define FAST_FORWARD_SLOWER_SETTING "fast_forward_slower"
 #define DEBUG_MENU_SETTING "debug_menu"
 #define NONE_VALUE "none"
+#define PAD_BUTTON_PREFIX "pad_"
+#define TEMP_SUFFIX ".tmp"
 #define FULLSCREEN_SETTING "fullscreen"
 #define FULLSCREEN_KEY_SETTING "fullscreen_toggle"
 #define AUTO_VALUE "auto"
@@ -261,6 +263,28 @@ static void apply_pad_control(struct parse *parse, uint32_t line, size_t functio
     }
 }
 
+/* The index in input_buttons() of the button whose controller setting
+ * (PAD_BUTTON_PREFIX and the button's setting: "pad_a", "pad_select") is
+ * name, or INPUT_BUTTON_COUNT. */
+static size_t find_pad_button(struct span name)
+{
+    const size_t prefix = sizeof PAD_BUTTON_PREFIX - 1u;
+    if (name.length <= prefix || !span_is((struct span){.text = name.text, .length = prefix}, PAD_BUTTON_PREFIX))
+        return INPUT_BUTTON_COUNT;
+    return find_button((struct span){.text = name.text + prefix, .length = name.length - prefix});
+}
+
+static void apply_pad_button(struct settings *settings, uint32_t line, size_t button, struct span value)
+{
+    char name[KEY_NAME_SIZE];
+    const int control = span_to_string(value, name, sizeof name) ? controller_control_from_name(name)
+                                                                 : CONTROLLER_NO_CONTROL;
+    if (control == CONTROLLER_NO_CONTROL)
+        add_problem(settings, line, SETTINGS_UNKNOWN_CONTROL, value);
+    else
+        settings->pad_buttons.controls[button] = control;
+}
+
 /* The function whose setting is called name, or CONTROLLER_FUNCTION_COUNT. */
 static size_t find_pad_function(struct span name)
 {
@@ -403,6 +427,11 @@ static void parse_line(struct parse *parse, uint32_t line, struct span raw)
         apply_pad_control(parse, line, pad_function, value);
         return;
     }
+    const size_t pad_button = find_pad_button(name);
+    if (pad_button != INPUT_BUTTON_COUNT) {
+        apply_pad_button(settings, line, pad_button, value);
+        return;
+    }
     const size_t button = find_button(name);
     if (button == INPUT_BUTTON_COUNT)
         add_problem(settings, line, SETTINGS_UNKNOWN_SETTING, name);
@@ -417,6 +446,7 @@ void settings_defaults(struct settings *out)
     out->scale = OPTIONS_DEFAULT_SCALE;
     out->fast_forward = fastforward_defaults();
     out->pad = controller_default_bindings();
+    out->pad_buttons = input_default_padmap();
     out->fullscreen = FULLSCREEN_AUTO;
     out->fullscreen_key = FULLSCREEN_DEFAULT_SCANCODE;
 }
@@ -506,6 +536,8 @@ static void print_setting_names(FILE *out)
     const struct controller_function_info *const functions = controller_functions();
     for (size_t i = 0; i < CONTROLLER_FUNCTION_COUNT; i++)
         (void)fprintf(out, ", %s", functions[i].setting);
+    for (size_t i = 0; i < INPUT_BUTTON_COUNT; i++)
+        (void)fprintf(out, ", " PAD_BUTTON_PREFIX "%s", buttons[i].setting);
 }
 
 static void print_problem(const struct settings_problem *problem, const char *path, FILE *out)
@@ -580,4 +612,158 @@ void settings_report(const struct settings *settings, const char *path, FILE *ou
     if (settings->problem_count > kept)
         (void)fprintf(out, MODULE ": %s: %llu more lines with problems, also ignored\n", path,
                       (unsigned long long)(settings->problem_count - kept));
+}
+
+/* ---- the writer ---- */
+
+/* settings_write's output so far: what fits of it in out, and its length. */
+struct writer {
+    char *out;
+    size_t size;
+    size_t length;
+};
+
+static void put(struct writer *w, const char *text)
+{
+    for (const char *c = text; *c != '\0'; c++) {
+        if (w->length + 1u < w->size)
+            w->out[w->length] = *c;
+        w->length++;
+    }
+    if (w->size > 0)
+        w->out[w->length < w->size ? w->length : w->size - 1u] = '\0';
+}
+
+/* "name = value\n", or nothing for an empty value (a key SDL has no name for). */
+static void put_setting(struct writer *w, const char *name, const char *value)
+{
+    if (value[0] == '\0')
+        return;
+    put(w, name);
+    put(w, " = ");
+    put(w, value);
+    put(w, "\n");
+}
+
+static void put_fast_forward(struct writer *w, const struct fastforward_settings *f)
+{
+    char text[KEY_NAME_SIZE];
+    put(w, "# Fast-forward: hold, toggle, one step faster and slower; the speed at the\n"
+           "# start (2, 3, 4 or unlimited) and the sound while it is on (play or mute).\n");
+    for (size_t i = 0; i < FASTFORWARD_KEY_COUNT; i++) {
+        fastforward_key_name(fastforward_settings_key(f, i), text, sizeof text);
+        put_setting(w, fast_forward_key_settings[i], text);
+    }
+    if (f->speed == FASTFORWARD_UNLIMITED)
+        (void)snprintf(text, sizeof text, UNLIMITED_VALUE);
+    else
+        (void)snprintf(text, sizeof text, "%lu", (unsigned long)f->speed);
+    put_setting(w, FAST_FORWARD_SPEED_SETTING, text);
+    put_setting(w, FAST_FORWARD_AUDIO_SETTING, f->audio == FASTFORWARD_AUDIO_MUTE ? MUTE_VALUE : PLAY_VALUE);
+}
+
+static void put_controller(struct writer *w, const struct settings *s)
+{
+    char name[KEY_NAME_SIZE];
+    const struct input_button *const buttons = input_buttons();
+    const struct controller_function_info *const functions = controller_functions();
+    put(w, "# The controller: its functions, then the GBA buttons on it (SDL's button\n"
+           "# names: a, b, x, y, back, start, leftshoulder, dpup, ..., or lefttrigger\n"
+           "# and righttrigger).\n");
+    for (size_t i = 0; i < CONTROLLER_FUNCTION_COUNT; i++)
+        put_setting(w, functions[i].setting, controller_control_setting(s->pad.controls[i]));
+    for (size_t i = 0; i < INPUT_BUTTON_COUNT; i++) {
+        (void)snprintf(name, sizeof name, PAD_BUTTON_PREFIX "%s", buttons[i].setting);
+        put_setting(w, name, controller_control_setting(s->pad_buttons.controls[i]));
+    }
+}
+
+static const char *fullscreen_value(enum fullscreen_setting fullscreen)
+{
+    switch (fullscreen) {
+    case FULLSCREEN_YES:
+        return YES_VALUE;
+    case FULLSCREEN_NO:
+        return NO_VALUE;
+    case FULLSCREEN_AUTO:
+    default:
+        return AUTO_VALUE;
+    }
+}
+
+size_t settings_write(const struct settings *settings, char *out, size_t size)
+{
+    struct writer w = {.out = out, .size = size, .length = 0};
+    char text[KEY_NAME_SIZE];
+    const struct input_button *const buttons = input_buttons();
+    if (size > 0)
+        out[0] = '\0';
+    put(&w, "# pokeemerald-native settings, written by the bubble menu's Save.\n"
+            "# One \"setting = value\" a line; docs/RUNNING.md has them all.\n"
+            "# The GBA buttons on the keyboard (SDL's key names).\n");
+    for (size_t i = 0; i < INPUT_BUTTON_COUNT; i++)
+        put_setting(&w, buttons[i].setting, input_scancode_name(settings->keymap.scancodes[i]));
+    put(&w, "# The key that opens the debug menu (R and Start together), or none.\n");
+    put_setting(&w, DEBUG_MENU_SETTING,
+                settings->keymap.debug_menu == INPUT_NO_SCANCODE ? NONE_VALUE
+                                                                 : input_scancode_name(settings->keymap.debug_menu));
+    put(&w, "# The window: 1 to 16 times the GBA's 240x160 screen.\n");
+    (void)snprintf(text, sizeof text, "%d", settings->scale);
+    put_setting(&w, SCALE_SETTING, text);
+    put_fast_forward(&w, &settings->fast_forward);
+    put(&w, "# Fullscreen: yes, no or auto, and its key.\n");
+    put_setting(&w, FULLSCREEN_SETTING, fullscreen_value(settings->fullscreen));
+    put_setting(&w, FULLSCREEN_KEY_SETTING, input_scancode_name(settings->fullscreen_key));
+    put_controller(&w, settings);
+    return w.length;
+}
+
+static void report_save(const char *call, const char *path)
+{
+    (void)fprintf(stderr, MODULE ": saving the settings: %s(%s) failed: %s\n", call, path, strerror(errno));
+}
+
+/* Writes text to temp and closes it; false after a report, temp removed. */
+static bool write_temp(const char *temp, const char *text, size_t length)
+{
+    const int descriptor = host_file_open(temp, O_WRONLY | O_CREAT | O_TRUNC);
+    if (descriptor < 0) {
+        report_save("open", temp);
+        return false;
+    }
+    const bool written = host_file_write_all(descriptor, text, length) == 0 && host_file_sync(descriptor) == 0;
+    if (!written)
+        report_save("write", temp);
+    if (host_file_close(descriptor) != 0 && written) {
+        report_save("close", temp);
+        (void)remove(temp);
+        return false;
+    }
+    if (!written)
+        (void)remove(temp);
+    return written;
+}
+
+int settings_save(const char *path, const struct settings *settings)
+{
+    static char text[SETTINGS_FILE_MAX_SIZE];
+    char temp[HOST_FILE_PATH_SIZE];
+    if (path == NULL || path[0] == '\0' || settings == NULL) {
+        (void)fprintf(stderr, MODULE ": saving the settings: this run reads no settings file\n");
+        return -1;
+    }
+    const int temp_length = snprintf(temp, sizeof temp, "%s" TEMP_SUFFIX, path);
+    const size_t length = settings_write(settings, text, sizeof text);
+    if (temp_length < 0 || (size_t)temp_length >= sizeof temp || length >= sizeof text) {
+        (void)fprintf(stderr, MODULE ": saving the settings: the path or the text is too long\n");
+        return -1;
+    }
+    if (!write_temp(temp, text, length))
+        return -1;
+    if (host_file_replace(temp, path) != 0) {
+        report_save("rename", path);
+        (void)remove(temp);
+        return -1;
+    }
+    return 0;
 }

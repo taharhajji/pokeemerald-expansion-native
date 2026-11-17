@@ -200,6 +200,20 @@ uint32_t fastforward_multiplier(void);
  * key changes it. FRAME_PACER_NORMAL_SPEED before init. */
 uint32_t fastforward_speed(void);
 
+/* The bubble menu's controls (bubble_menu.h): the speed in force, as the
+ * speed keys set it (shown for a while like them); returns 0, or -1 for a
+ * speed that is not one or before init, which changes nothing. */
+int fastforward_set_speed(uint32_t speed);
+
+/* Whether the toggle is on, and switching it on or off as its key does. */
+bool fastforward_toggled(void);
+void fastforward_set_toggled(bool on);
+
+/* The sound while fast-forward is on, and changing it. Before init the
+ * getter answers FASTFORWARD_AUDIO_PLAY and the setter does nothing. */
+enum fastforward_audio fastforward_audio(void);
+void fastforward_set_audio(enum fastforward_audio audio);
+
 /* Whether the sound is off now: fast-forward on with FASTFORWARD_AUDIO_MUTE. */
 bool fastforward_muted(void);
 

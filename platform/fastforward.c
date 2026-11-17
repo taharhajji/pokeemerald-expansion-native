@@ -251,7 +251,7 @@ static void set_speed(uint32_t speed)
 /* A press, the overlay's while it is shown; a repeat does nothing. */
 static void key_down(const SDL_KeyboardEvent *key)
 {
-    if (key->repeat != 0 || overlay_shown())
+    if (key->repeat != 0 || overlay_takes_input())
         return;
     const int scancode = (int)key->keysym.scancode;
     if (fastforward_key_pressed(&fastforward.settings.toggle, scancode, key->keysym.mod))
@@ -291,7 +291,7 @@ void fastforward_handle_controller(const struct controller_edge *edge)
 {
     if (!fastforward.enabled || edge == NULL)
         return;
-    if (edge->pressed && !overlay_shown()) {
+    if (edge->pressed && !overlay_takes_input()) {
         if (edge->function == CONTROLLER_FAST_FORWARD_TOGGLE)
             fastforward.toggled = !fastforward.toggled;
         else if (edge->function == CONTROLLER_FAST_FORWARD_HOLD)
@@ -314,6 +314,36 @@ uint32_t fastforward_multiplier(void)
 uint32_t fastforward_speed(void)
 {
     return fastforward.enabled ? fastforward.settings.speed : FRAME_PACER_NORMAL_SPEED;
+}
+
+int fastforward_set_speed(uint32_t speed)
+{
+    if (!fastforward.enabled || !speed_is_valid(speed))
+        return -1;
+    set_speed(speed);
+    return 0;
+}
+
+bool fastforward_toggled(void)
+{
+    return fastforward.enabled && fastforward.toggled;
+}
+
+void fastforward_set_toggled(bool on)
+{
+    if (fastforward.enabled)
+        fastforward.toggled = on;
+}
+
+enum fastforward_audio fastforward_audio(void)
+{
+    return fastforward.enabled ? fastforward.settings.audio : FASTFORWARD_AUDIO_PLAY;
+}
+
+void fastforward_set_audio(enum fastforward_audio audio)
+{
+    if (fastforward.enabled && (audio == FASTFORWARD_AUDIO_PLAY || audio == FASTFORWARD_AUDIO_MUTE))
+        fastforward.settings.audio = audio;
 }
 
 bool fastforward_muted(void)

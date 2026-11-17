@@ -40,9 +40,13 @@
  * value is a button as SDL names it (SDL_GameControllerGetButtonFromString:
  * x, y, leftstick, rightstick, dpup, ...) or lefttrigger or righttrigger; and
  * fullscreen's, `fullscreen` (`yes`, `no`, or `auto`, the default: fullscreen
- * on a Steam Deck only, fullscreen.h) and `fullscreen_toggle` (a key, F11).
- * The controller's GBA buttons are not settings: they are SDL's layout, and
- * Steam Input remaps them where a player wants others. A button's value is
+ * on a Steam Deck only, fullscreen.h) and `fullscreen_toggle` (a key, F11);
+ * and the GBA buttons on a controller, `pad_a`, `pad_b`, `pad_select`,
+ * `pad_start`, `pad_right`, `pad_left`, `pad_up`, `pad_down`, `pad_r` and
+ * `pad_l`, each a control named as the functions' are (input.h's
+ * input_padmap; SDL's layout by default, and two may share one). The
+ * bubble menu (bubble_menu.h) writes the file when the player asks it to
+ * (settings_save); the game writes it at no other time. A button's value is
  * a key as SDL names it (SDL_GetScancodeFromName: "Z", "Return", "Left
  * Shift", "Keypad 8", "F2", ...); a fast-forward key's is one too, after any
  * of `shift+`, `ctrl+` and `alt+` (fastforward_key_from_name); the scale is a
@@ -112,6 +116,7 @@ struct settings {
     int scale;
     struct fastforward_settings fast_forward;
     struct controller_bindings pad;
+    struct input_padmap pad_buttons; /* the GBA buttons on a controller: pad_a ... pad_l */
     enum fullscreen_setting fullscreen;
     int fullscreen_key;   /* an SDL_Scancode, never INPUT_NO_SCANCODE */
     bool found;           /* settings_load: the file was there */
@@ -138,5 +143,31 @@ int settings_load(const char *path, struct settings *out);
 /* One line per problem kept, "settings: PATH:LINE: what is wrong; what
  * happens instead", and one for the problems not kept, to out. */
 void settings_report(const struct settings *settings, const char *path, FILE *out);
+
+/* The text of a settings file that settings_parse reads back as settings
+ * (every setting on its own line, under comments that name them), into out
+ * (size bytes, NUL-terminated when size > 0). Returns the length of the
+ * whole text, as snprintf does: a return of size or more means out held
+ * too little. A key SDL has no name for is left out, so it reads back as
+ * its default. Pure. */
+size_t settings_write(const struct settings *settings, char *out, size_t size);
+
+/* Writes settings_write's text to path, through a file beside it that then
+ * replaces it (host_file_replace), so that a failure leaves the old file.
+ * Returns 0, or -1 after a report on stderr. */
+int settings_save(const char *path, const struct settings *settings);
+
+/* The text of a settings file that settings_parse reads back as settings
+ * (every setting on its own line, under comments that name them), into out
+ * (size bytes, NUL-terminated when size > 0). Returns the length of the
+ * whole text, as snprintf does: a return of size or more means out held
+ * too little. A key SDL has no name for is left out, so it reads back as
+ * its default. Pure. */
+size_t settings_write(const struct settings *settings, char *out, size_t size);
+
+/* Writes settings_write's text to path, through a file beside it that then
+ * replaces it (host_file_replace), so that a failure leaves the old file.
+ * Returns 0, or -1 after a report on stderr. */
+int settings_save(const char *path, const struct settings *settings);
 
 #endif /* PLATFORM_SETTINGS_H */

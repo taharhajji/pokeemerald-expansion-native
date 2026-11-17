@@ -2709,3 +2709,54 @@ for the retail ROM's RAM and mean nothing in expansion's; switching the
 menu on by a build flag, since it is already on. What it costs: nothing
 in a replay or a gate, whose keys are scripted (the field reads as no key
 there), and a key that the player can move or remove.
+
+## 2026-11-17: A clickable menu for the speed, the cheats and the mapping, which may write the settings file
+
+The player asked for a bubble in the top-left corner that opens the cheats,
+the speeds, and a way to add a controller and map it. Keys alone (F2 to F5)
+were not enough: nothing on the screen says they exist, and a controller's
+GBA buttons could not be moved at all (SDL's layout was fixed, and Steam
+Input was the answer on a Deck only).
+
+Chosen: `platform/bubble_menu.c`, drawn by `video.c` over the frame like the
+overlay and the indicator (never into the frame buffer, so no screenshot
+or gate sees it), clicked with the mouse in the LCD's coordinates (SDL
+gives them in the renderer's logical size), started for the runs that get
+the overlay. Its rows act on the modules that already own the state: the
+speed through four setters on `fastforward.h`; the keymap and a new
+controller map (`input_padmap`, ten controls, settings `pad_a` ... `pad_l`)
+through `input_set_keymap` and `input_set_padmap`; the functions through
+`controller_set_bindings`, which swaps a taken button rather than refusing
+it. The game's keys are held back while it is open by the overlay's own
+latch (`overlay_set_menu_open`), so a button pressed in the menu does not
+reach the game when it closes. The menu rebuilds its rows from those
+modules every time, keeping no copy that could disagree with them.
+
+The cheats are `platform/cheats.c`, compiled with the game's defines as
+`inspect.c` is, calling what expansion's debug menu calls (HealPlayerParty,
+SetMoney, AddBagItem, FlagToggle), in the overworld only, between two
+frames, from the event loop. Three are flags expansion's config leaves at
+0; the native build gives them three of the unused flags 0x20 to 0x22
+(`include/config/overworld.h` and `wild_encounter.h`, under the guard), which
+also makes the debug menu's own Collision, Encounter and Trainer See
+toggles work. "Open the debug menu" presses R and Start for the game for
+two frames (`input_inject`), past the menu's latch. The menu reaches the
+cheats and the file through hooks, so its tests need no game.
+
+Save rewrites `settings.ini` whole (`settings_write`, then a temporary file
+that replaces the old one, as the clock's offset is written). This
+supersedes "the game reads it at start-up and never writes it" for one
+action the player takes; the file is never written otherwise.
+
+Rejected: a menu drawn in the game's own window system (it would be
+expansion code, under the guard in many files, and only reachable where
+the game takes input); an editor of GameShark codes (meaningless addresses
+for expansion, as decided on 2026-11-09); writing the settings file on
+every change (a stray click would lose the player's comments, and a failed
+write mid-game has nobody to tell); editing only the changed lines of the
+file (a parser that keeps comments and unknown lines in place, for little
+gain over the documented rewrite). What it costs: the comments in a file
+the menu saves are lost, which `docs/RUNNING.md` says; the cheats' three
+flags are in the save, so a save made with walls off has them off until
+switched back; the menu's labels are English, as the overlay's are, since
+the font is ASCII.

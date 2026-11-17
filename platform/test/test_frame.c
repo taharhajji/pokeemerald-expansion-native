@@ -16,7 +16,7 @@
  * loop's poll; fast-forward's sound runs on SDL's dummy audio device too,
  * which plays its queue at the device's rate, and the pacer in real time.
  */
-// deps: lcd_status.c gba_memmap.c interrupt.c timer.c dma.c transfer_bounds.c ppu.c ppu_bg.c ppu_obj.c ppu_window.c ppu_blend.c psg.c psg_channel.c psg_square.c psg_wave.c psg_noise.c audio.c video.c input.c overlay.c controller.c font.c flash.c save_file.c frame_pacer.c game_hooks.c debug_channel.c m4a_output.c sound_mix.c audio_dump.c sound_grid.c fastforward.c fullscreen.c sound_speedup.c
+// deps: bubble_menu.c lcd_status.c gba_memmap.c interrupt.c timer.c dma.c transfer_bounds.c ppu.c ppu_bg.c ppu_obj.c ppu_window.c ppu_blend.c psg.c psg_channel.c psg_square.c psg_wave.c psg_noise.c audio.c video.c input.c overlay.c controller.c font.c flash.c save_file.c frame_pacer.c game_hooks.c debug_channel.c m4a_output.c sound_mix.c audio_dump.c sound_grid.c fastforward.c fullscreen.c sound_speedup.c
 #include <setjmp.h>
 #include <stdbool.h>
 #include <stdint.h>

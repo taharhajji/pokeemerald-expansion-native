@@ -62,6 +62,7 @@ There is no 32-bit Windows build and no sanitizer build for Windows.
 | Shift+Tab | fast-forward on, and off again |
 | F3, F2 | fast-forward's speed one step up, one step down |
 | F4 | R and Start together: the debug menu, the cheats ([below](#cheats-the-debug-menu)) |
+| F5, or a click on the bubble | the menu: speed, cheats, controller, keys ([below](#the-menu-the-bubble-in-the-top-left-corner)) |
 
 Those are the defaults; the settings file ([below](#the-settings-file))
 moves any GBA button, any fast-forward key and the debug menu key to another key. The keys are physical positions: on a
@@ -162,6 +163,41 @@ it on). While the overlay is shown the controller's fast-forward buttons do
 nothing either. The speed keys have no controller button: set the speed
 with the keyboard, or in the file.
 
+## The menu: the bubble in the top-left corner
+
+A small blue bubble with three white bars sits in the window's top-left
+corner. Click it, or press F5, and a menu covers the game; click the bubble
+again, click `[Close]`, press F5 or Esc, or right-click to close it. While
+it is open the game keeps running but receives no button, as under the F1
+overlay. Five tabs along the top:
+
+- **Speed**: normal speed, or fast-forward switched on at 2x, 3x, 4x or as
+  fast as it goes (the row in force is marked `>`), and the sound while
+  fast-forward is on (sped up or muted). Choosing a speed also sets the one
+  Tab and Shift+Tab use.
+- **Cheats**: open expansion's debug menu (every cheat it has: below), heal
+  the party, max money, 99 Rare Candies, 99 Master Balls, and three
+  switches: walk through walls, no wild encounters, trainers ignore you
+  (`ON` or `off`). They work in the overworld only (the status line says
+  so otherwise), and what they change is in your game: it is saved when you
+  save in the game, like anything else.
+- **Pad**: the controllers plugged in (SDL's name for each, or "No
+  controller: plug one in"; plug one in at any time, nothing to restart), and
+  which controller button presses each GBA button. Click a row, then press
+  the controller button you want, or a trigger; Esc or a right click gives
+  up. The left stick always moves the D-pad.
+- **Pad fn**: the controller's own functions (fast-forward hold and toggle,
+  the help overlay, its close and quit, fullscreen), each on its button. A
+  button already used by another function swaps with it.
+- **Keys**: the keyboard key of each GBA button and of the debug menu
+  (F4). Click a row, then press the key; F1 and F5 cannot be taken.
+
+Each remapping tab ends with a row that resets it to the defaults.
+Everything takes effect at once and lasts until you quit. `[Save]` writes
+the keys, the controller and the speed into the settings file
+([below](#the-settings-file)), so that the next start has them; it rewrites
+the whole file, without the comments you may have written in it.
+
 ## Cheats: the debug menu
 
 The cheats are expansion's own debug menu (`src/debug.c`,
@@ -191,7 +227,9 @@ ships them:
   flags; toggles for the Pokédex, the National Dex, the PokéNav, Match Call,
   the Running Shoes, the Fly flags, all badges, Game clear and the Frontier
   Pass; and the cheats proper, Collision OFF (walk through walls), Encounter
-  OFF, Trainer See OFF, Catching OFF and Bag Use OFF.
+  OFF and Trainer See OFF, which this build gives a flag each (the menu's
+  three switches are the same flags). Catching OFF and Bag Use OFF have no
+  flag here and say so.
 - **Sound**: play any music or sound effect. **ROM Info**: expansion's
   version and the save's free space.
 
@@ -259,8 +297,9 @@ from its folder, to see the loader's message.
 ## The settings file
 
 `settings.ini` in the data directory ([below](#where-the-files-live)). The
-game reads it when it starts and never writes it, so you make it yourself
-with any text editor; without it the game uses the defaults. One setting a
+game reads it when it starts, and writes it only when you press `[Save]` in
+the menu ([above](#the-menu-the-bubble-in-the-top-left-corner)); otherwise you
+make it yourself with any text editor. Without it the game uses the defaults. One setting a
 line, `setting = value`; a line starting with `#` is a comment. The whole
 file with the defaults:
 
@@ -305,6 +344,17 @@ pad_overlay = y
 pad_overlay_close = b
 pad_quit = x
 pad_fullscreen = lefttrigger
+# The GBA buttons on a controller (two may share a button).
+pad_a = a
+pad_b = b
+pad_select = back
+pad_start = start
+pad_up = dpup
+pad_down = dpdown
+pad_left = dpleft
+pad_right = dpright
+pad_l = leftshoulder
+pad_r = rightshoulder
 ```
 
 The settings are the ten GBA buttons (`a`, `b`, `select`, `start`, `up`,
@@ -318,7 +368,9 @@ or `none`), `fullscreen` and
 `pad_overlay_close`, `pad_quit`, `pad_fullscreen`), each a button as SDL names
 it (`a`, `b`, `x`, `y`, `back`, `start`, `guide`, `leftstick`, `rightstick`,
 `leftshoulder`, `rightshoulder`, `dpup`, `dpdown`, `dpleft`, `dpright`, ...) or
-`lefttrigger` or `righttrigger`. One button serves one controller function: if
+`lefttrigger` or `righttrigger`, and the ten GBA buttons on a controller
+(`pad_a`, `pad_b`, `pad_select`, `pad_start`, `pad_up`, `pad_down`,
+`pad_left`, `pad_right`, `pad_l`, `pad_r`), named the same way. One button serves one controller function: if
 two lines name the same button, the later is reported and keeps its default. A comment is a whole line:
 `a = z  # my key` reads the key name `z  # my key`, which is not one. Names and keys can be
 written in any case, with or without spaces around the `=`; a setting you
