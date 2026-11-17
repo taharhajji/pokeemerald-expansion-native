@@ -53,7 +53,8 @@ static struct {
     bool enabled;
     bool held;
     bool toggled;
-    bool pad_held; /* the controller's hold was pressed and is not yet released */
+    bool pad_held;  /* the controller's hold was pressed and is not yet released */
+    bool unfocused; /* the window lost the focus and has not had it back: no fast-forward meanwhile */
     uint32_t flash_frames; /* frames left of the indicator after a speed key, fast-forward off */
     struct fastforward_settings settings;
 } fastforward;
@@ -221,6 +222,7 @@ int fastforward_init(const struct fastforward_settings *settings)
     fastforward.held = false;
     fastforward.toggled = false;
     fastforward.pad_held = false;
+    fastforward.unfocused = false;
     fastforward.flash_frames = 0;
     fastforward.enabled = true;
     return 0;
@@ -232,6 +234,7 @@ void fastforward_shutdown(void)
     fastforward.held = false;
     fastforward.toggled = false;
     fastforward.pad_held = false;
+    fastforward.unfocused = false;
     fastforward.flash_frames = 0;
 }
 
@@ -277,9 +280,13 @@ void fastforward_handle_event(const union SDL_Event *event)
             fastforward.held = false;
         break;
     case SDL_WINDOWEVENT:
+        /* The hold ends (its key-up goes to the other window); the toggle
+         * only waits for the focus to come back (fastforward.h). */
         if (event->window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
             fastforward.held = false;
-            fastforward.toggled = false;
+            fastforward.unfocused = true;
+        } else if (event->window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
+            fastforward.unfocused = false;
         }
         break;
     default:
@@ -303,7 +310,8 @@ void fastforward_handle_controller(const struct controller_edge *edge)
 
 bool fastforward_active(void)
 {
-    return fastforward.enabled && (fastforward.held || fastforward.toggled || fastforward.pad_held);
+    return fastforward.enabled && !fastforward.unfocused
+           && (fastforward.held || fastforward.toggled || fastforward.pad_held);
 }
 
 uint32_t fastforward_multiplier(void)

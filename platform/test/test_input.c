@@ -377,6 +377,7 @@ PTEST(the_live_maps_are_set_after_init_and_refused_before_or_when_invalid)
 
 PTEST(an_injection_holds_its_keys_for_its_frames_on_top_of_the_source)
 {
+    overlay_shutdown(); /* no latch left by another test: they share a process on Windows */
     PT_ASSERT_EQ_INT(input_init(INPUT_SOURCE_SCRIPT, NULL), 0);
     input_script_set(INPUT_KEY_A);
     input_inject(INPUT_KEY_R | INPUT_KEY_START, 2u);
@@ -409,6 +410,7 @@ PTEST(an_injection_holds_its_keys_for_its_frames_on_top_of_the_source)
 
 PTEST(an_injection_reaches_the_game_while_the_menu_holds_its_keys_back)
 {
+    overlay_shutdown();
     PT_ASSERT_EQ_INT(input_init(INPUT_SOURCE_SCRIPT, NULL), 0);
     input_script_set(INPUT_KEY_A);
     overlay_set_menu_open(true);
@@ -419,6 +421,7 @@ PTEST(an_injection_reaches_the_game_while_the_menu_holds_its_keys_back)
     input_update_keyinput(); /* A, held through the menu, stays released; the injection does not */
     const uint16_t injected = *keyinput();
     input_shutdown();
+    overlay_shutdown(); /* A's latch would outlive the test */
     *keyinput() = 0;
     PT_ASSERT_EQ_U32(held_back, 0x03FFu);
     PT_ASSERT_EQ_U32(injected, input_keys_to_keyinput(INPUT_KEY_R | INPUT_KEY_START));

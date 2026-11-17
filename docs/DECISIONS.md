@@ -2760,3 +2760,36 @@ the menu saves are lost, which `docs/RUNNING.md` says; the cheats' three
 flags are in the save, so a save made with walls off has them off until
 switched back; the menu's labels are English, as the overlay's are, since
 the font is ASCII.
+
+## 2026-11-17: Fast-forward switched on waits while the window has not the focus, instead of switching off
+
+Reported: the menu's speeds "change nothing; the character goes no faster".
+Measured on the player's Windows 11 laptop with a log in fastforward.c:
+choosing a speed in the menu switched the toggle on, and a moment later a
+focus loss switched it off, as the 2026-10-15 rule said it should (an
+unwatched game must not run at full speed). Which window took the focus in
+that run was not recorded; during earlier tests on the same machine a
+"battery low" dialog of Windows' had taken it over the game. Nothing tells
+the player the toggle went off. Holding
+Tab and with no other window coming up, the same build ran 1500 frames at
+4x at 149 frames a second and at max at 177, against 61 at the normal
+speed; the window and fullscreen alike reach about 300 frames a second
+unthrottled, so neither the display nor the machine caps it.
+
+Chosen: the focus loss suspends the toggle rather than ending it. Without
+the focus the game runs at the normal speed and no indicator is drawn,
+which keeps the rule's intent; with the focus back, fast-forward resumes
+at the speed chosen. The hold still ends with the loss, since its key-up
+goes to the other window; the controller's hold likewise. Rejected:
+keeping the old rule and drawing a notice when it fires (the speed is still
+lost, and the player has to find it again); ignoring the focus entirely
+(the unwatched game at full speed the rule was made against).
+
+With it, the pacer sleeps on `host_sleep_us`, a high-resolution waitable
+timer on Windows and nanosleep elsewhere, in place of SDL_Delay. That was
+first suspected and is not the cause on this machine, where Windows
+honours SDL's 1 ms timer request (twenty sleeps of 2 ms: 58 ms with
+SDL_Delay, 44 to 49 ms with the timer). It is kept because Windows 11 may
+leave the system timer at 15.6 ms for a process it deems in the
+background or to save power, and a 4.2 ms fast-forward frame would then
+oversleep to the tick; the timer depends on no such setting.

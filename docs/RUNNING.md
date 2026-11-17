@@ -147,8 +147,10 @@ the window (`FF 3x`, `FF 4x` or `FF max` at the other speeds).
   fast-forward may share a key: pressing it does both.
 - Letting go of the hold key ends fast-forward, and so does switching to
   another window while you hold it. Fast-forward switched on with Shift+Tab
-  stays on until you press it again, switch to another window or quit; after
-  you come back, Shift+Tab switches it on again.
+  or from the menu stays on until you press Shift+Tab again, choose Normal
+  speed in the menu, or quit. While another window has the focus (a
+  notification, another program) the game runs at its normal speed, and
+  fast-forward resumes when you click back into the game.
 - While the F1 overlay is shown, the fast-forward keys do nothing (letting
   go of a held Tab still ends it). Fast-forward switched on stays on under
   the overlay, which covers the indicator.
@@ -158,8 +160,8 @@ the window (`FF 3x`, `FF 4x` or `FF max` at the other speeds).
 Fast-forward also works from a controller: hold the right trigger, or click
 the right stick to switch it on and off. The hold ends when the trigger is
 let go, when the controller is unplugged and when the window loses focus; the
-switch ends when the window loses focus too (unplugging the controller leaves
-it on). While the overlay is shown the controller's fast-forward buttons do
+switch waits while the window has not the focus and resumes with it, as the
+keyboard's does (unplugging the controller leaves it on). While the overlay is shown the controller's fast-forward buttons do
 nothing either. The speed keys have no controller button: set the speed
 with the keyboard, or in the file.
 
